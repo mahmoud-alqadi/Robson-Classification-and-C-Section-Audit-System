@@ -1,0 +1,172 @@
+{
+  "name": "Robson Monthly Hospital Report",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "robson-upload",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -512,
+        0
+      ],
+      "id": "ccd59dda-3876-4d51-8c39-e80668a4f460",
+      "name": "Webhook",
+      "webhookId": "6ada9989-5c21-4208-a770-5cd28b712989"
+    },
+    {
+      "parameters": {
+        "language": "pythonNative",
+        "pythonCode": "required_columns = [\n    'parity',\n    'previous_cs',\n    'onset_of_labor',\n    'presentation',\n    'gestational_age',\n    'number_of_fetuses'\n]\n\n# Handle both mock data and real webhook POST\nfirst = _items[0][\"json\"]\n\n# If data came as array inside body or directly\nif \"body\" in first and isinstance(first[\"body\"], list):\n    records = first[\"body\"]\nelif isinstance(first, list):\n    records = first\nelif len(_items) > 1 or all(k in first for k in required_columns):\n    # Already individual items (mock data)\n    data_columns = list(first.keys())\n    missing = [c for c in required_columns if c not in data_columns]\n    if missing:\n        raise Exception('Missing columns: ' + ', '.join(missing))\n    return _items\nelse:\n    # Try to find the array in any key\n    for key, val in first.items():\n        if isinstance(val, list) and len(val) > 0:\n            records = val\n            break\n    else:\n        raise Exception('Could not find birth records in the data')\n\n# Validate columns in extracted records\ndata_columns = list(records[0].keys())\nmissing = [c for c in required_columns if c not in data_columns]\nif missing:\n    raise Exception('Missing columns: ' + ', '.join(missing))\n\n# Convert to n8n items\nreturn [{\"json\": r} for r in records]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -288,
+        0
+      ],
+      "id": "0f30b28b-0f1a-4dcb-b655-251b66f72b2e",
+      "name": "Validate Columns"
+    },
+    {
+      "parameters": {
+        "language": "pythonNative",
+        "pythonCode": "def classify_robson(r):\n    \"\"\"WHO Robson Ten-Group Classification System\"\"\"\n\n    parity  = r.get('parity', None)\n    prev_cs = r.get('previous_cs', None)\n    onset   = r.get('onset_of_labor', None)\n    present = r.get('presentation', None)\n    ga      = r.get('gestational_age', None)\n    fetuses = r.get('number_of_fetuses', None)\n\n    # --- Any missing variable → Unclassified ---\n    if any(v is None or v == '' for v in\n           [parity, prev_cs, onset, present, ga, fetuses]):\n        return 0\n\n    try:\n        parity  = int(parity)\n        prev_cs = int(prev_cs)\n        ga      = float(ga)\n        fetuses = int(fetuses)\n    except (ValueError, TypeError):\n        return 0\n\n    valid_onsets = ('spontaneous', 'induced', 'no_labor')\n    valid_present = ('cephalic', 'breech', 'transverse')\n    if onset not in valid_onsets or present not in valid_present:\n        return 0\n\n    # === WHO Classification Tree ===\n\n    # 1. Multiple pregnancy → Group 8\n    if fetuses > 1:\n        return 8\n\n    # 2. Presentation (singleton only)\n    if present == 'transverse':\n        return 9\n\n    if present == 'breech':\n        return 6 if parity == 0 else 7\n\n    # 3. Singleton cephalic — check gestational age\n    if ga < 37:\n        return 10\n\n    # 4. Singleton cephalic term — check previous CS\n    if prev_cs >= 1:\n        return 5\n\n    # 5. Singleton cephalic term, no previous CS\n    if parity == 0:\n        return 1 if onset == 'spontaneous' else 2\n    else:\n        return 3 if onset == 'spontaneous' else 4\n\n\nfor item in _items:\n    r = item[\"json\"]\n    group = classify_robson(r)\n    r[\"robson_group\"] = group\n    r[\"robson_label\"] = (\n        \"Unclassified\" if group == 0 else f\"Group {group}\"\n    )\n\nreturn _items"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        0
+      ],
+      "id": "01dda80f-b06b-4c2f-ae6f-1025de515f54",
+      "name": "Robson Classifier"
+    },
+    {
+      "parameters": {
+        "language": "pythonNative",
+        "pythonCode": "reference_cs = {\n    1: 16.2, 2: 36.4, 3: 4.4, 4: 16.8, 5: 82.5,\n    6: 91.4, 7: 82.8, 8: 60.3, 9: 96.6, 10: 31.9\n}\n\ngroups = {}\nunclassified = 0\n\nfor item in _items:\n    r = item[\"json\"]\n    g = r.get(\"robson_group\", 0)\n    if g == 0:\n        unclassified += 1\n        continue\n    if g not in groups:\n        groups[g] = {'total': 0, 'cs': 0}\n    groups[g]['total'] += 1\n    if r.get(\"delivery_method\", \"\") == \"cs\":\n        groups[g]['cs'] += 1\n\ntotal_births = len(_items)\nresults = []\n\nfor g in sorted(groups.keys()):\n    info = groups[g]\n    cs_rate = round((info['cs'] / info['total']) * 100, 1) if info['total'] > 0 else 0\n    ref = reference_cs.get(g, 0)\n    gap = round(cs_rate - ref, 1)\n\n    flag = \"OK\"\n    if gap > 10:\n        flag = \"HIGH\"\n    elif gap > 0:\n        flag = \"WATCH\"\n\n    results.append({\n        \"json\": {\n            \"robson_group\": g,\n            \"total_births\": info['total'],\n            \"cs_count\": info['cs'],\n            \"cs_rate_pct\": cs_rate,\n            \"cdc_reference_pct\": ref,\n            \"gap_pp\": gap,\n            \"alert\": flag\n        }\n    })\n\n# Add summary row\noverall_cs = sum(g['cs'] for g in groups.values())\nresults.append({\n    \"json\": {\n        \"robson_group\": \"ALL\",\n        \"total_births\": total_births,\n        \"cs_count\": overall_cs,\n        \"cs_rate_pct\": round((overall_cs / total_births) * 100, 1) if total_births > 0 else 0,\n        \"cdc_reference_pct\": \"-\",\n        \"gap_pp\": \"-\",\n        \"alert\": \"SUMMARY\",\n        \"unclassified_count\": unclassified\n    }\n})\n\nreturn results"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        0
+      ],
+      "id": "2d8e3839-2f9d-4f6a-b56e-a9df2f9da9b3",
+      "name": "Statistics"
+    },
+    {
+      "parameters": {
+        "language": "pythonNative",
+        "pythonCode": "# ── Updated Report Builder code for n8n ──\n# Copy this ENTIRE code into the Report Builder node\n# It generates a FULL HTML page (not just a table fragment)\n\nrows = \"\"\nalert_count = 0\nsummary = None\n\ngroup_names = {\n    1: \"Nulliparous, single cephalic, term, spontaneous\",\n    2: \"Nulliparous, single cephalic, term, induced/CS before labor\",\n    3: \"Multiparous (no prev CS), single cephalic, term, spontaneous\",\n    4: \"Multiparous (no prev CS), single cephalic, term, induced/CS before labor\",\n    5: \"Previous CS, single cephalic, term\",\n    6: \"Nulliparous breech\",\n    7: \"Multiparous breech\",\n    8: \"Multiple pregnancy\",\n    9: \"Transverse/oblique lie\",\n    10: \"Single cephalic, preterm\"\n}\n\nfor item in _items:\n    r = item[\"json\"]\n    g = r[\"robson_group\"]\n\n    if g == \"ALL\":\n        summary = r\n        continue\n\n    total = r[\"total_births\"]\n    cs = r[\"cs_count\"]\n    rate = r[\"cs_rate_pct\"]\n    ref = r[\"cdc_reference_pct\"]\n    gap = r[\"gap_pp\"]\n    flag = r[\"alert\"]\n\n    if flag == \"HIGH\":\n        color = \"#fef2f2\"\n        text_color = \"#dc2626\"\n        border = \"#fecaca\"\n        alert_count += 1\n    elif flag == \"WATCH\":\n        color = \"#fffbeb\"\n        text_color = \"#d97706\"\n        border = \"#fde68a\"\n    else:\n        color = \"#f0fdf4\"\n        text_color = \"#059669\"\n        border = \"#bbf7d0\"\n\n    gap_class = \"color:#dc2626\" if gap > 0 else \"color:#059669\"\n    desc = group_names.get(g, \"\")\n\n    rows += f\"\"\"\n    <tr>\n      <td style=\"padding:11px 14px;border-bottom:1px solid #f0f0f0;text-align:left;font-weight:600\">Group {g}</td>\n      <td style=\"padding:11px 14px;border-bottom:1px solid #f0f0f0;font-size:11px;color:#6b7280;text-align:left\">{desc}</td>\n      <td style=\"padding:11px 14px;border-bottom:1px solid #f0f0f0;text-align:center;font-family:monospace\">{total}</td>\n      <td style=\"padding:11px 14px;border-bottom:1px solid #f0f0f0;text-align:center;font-family:monospace\">{cs}</td>\n      <td style=\"padding:11px 14px;border-bottom:1px solid #f0f0f0;text-align:center;font-family:monospace;font-weight:600\">{rate}%</td>\n      <td style=\"padding:11px 14px;border-bottom:1px solid #f0f0f0;text-align:center;font-family:monospace\">{ref}%</td>\n      <td style=\"padding:11px 14px;border-bottom:1px solid #f0f0f0;text-align:center;font-family:monospace;{gap_class};font-weight:500\">{gap:+.1f}pp</td>\n      <td style=\"padding:11px 14px;border-bottom:1px solid #f0f0f0;text-align:center\"><span style=\"display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;background:{color};color:{text_color};border:1px solid {border}\">{flag}</span></td>\n    </tr>\"\"\"\n\nunclass = summary[\"unclassified_count\"] if summary else 0\ntotal_b = summary[\"total_births\"] if summary else 0\noverall_cs = summary[\"cs_rate_pct\"] if summary else 0\n\nhtml = f\"\"\"<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>Robson Monthly Report</title>\n<style>\n  * {{ margin:0; padding:0; box-sizing:border-box; }}\n  body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#f0f2f5; padding:40px 20px; color:#1a1a2e; }}\n  .c {{ max-width:960px; margin:0 auto; background:#fff; border-radius:12px; box-shadow:0 2px 20px rgba(0,0,0,0.08); overflow:hidden; }}\n  .hdr {{ background:linear-gradient(135deg,#1a1a2e,#0f3460); color:#fff; padding:32px 36px 24px; }}\n  .hdr h1 {{ font-size:22px; font-weight:700; margin-bottom:4px; }}\n  .hdr p {{ font-size:13px; color:#94a3b8; }}\n  .hdr .badge {{ display:inline-block; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); padding:3px 10px; border-radius:4px; font-size:11px; font-family:monospace; color:#e2e8f0; margin-top:10px; }}\n  .bar {{ display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid #e5e7eb; }}\n  .bar .item {{ padding:18px 20px; border-right:1px solid #e5e7eb; text-align:center; }}\n  .bar .item:last-child {{ border-right:none; }}\n  .bar .num {{ font-size:28px; font-weight:700; font-family:monospace; }}\n  .bar .lbl {{ font-size:11px; color:#6b7280; margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; font-weight:500; }}\n  .tbl {{ padding:24px 36px 32px; }}\n  .tbl h2 {{ font-size:14px; font-weight:600; color:#374151; margin-bottom:14px; }}\n  table {{ width:100%; border-collapse:collapse; font-size:13px; }}\n  thead th {{ background:#f8f9fb; padding:10px 14px; text-align:center; font-weight:600; font-size:11px; color:#4b5563; border-bottom:2px solid #e5e7eb; text-transform:uppercase; letter-spacing:0.3px; }}\n  thead th:first-child, thead th:nth-child(2) {{ text-align:left; }}\n  tbody tr:hover {{ background:#f8f9fb; }}\n  .note {{ margin-top:14px; padding:10px 14px; background:#fffbeb; border-left:3px solid #f59e0b; border-radius:0 6px 6px 0; font-size:12px; color:#92400e; }}\n  .ftr {{ padding:18px 36px; background:#f8f9fb; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; font-size:12px; color:#9ca3af; }}\n  .ftr strong {{ color:#6b7280; }}\n</style>\n</head>\n<body>\n<div class=\"c\">\n  <div class=\"hdr\">\n    <h1>Robson Monthly Classification Report</h1>\n    <p>WHO Ten-Group Classification System — Automated Hospital Reporting</p>\n    <span class=\"badge\">Total Records: {total_b} | Generated automatically by n8n pipeline</span>\n  </div>\n  <div class=\"bar\">\n    <div class=\"item\"><div class=\"num\" style=\"color:#1a1a2e\">{total_b}</div><div class=\"lbl\">Total Births</div></div>\n    <div class=\"item\"><div class=\"num\" style=\"color:#d97706\">{overall_cs}%</div><div class=\"lbl\">Overall CS Rate</div></div>\n    <div class=\"item\"><div class=\"num\" style=\"color:#dc2626\">{alert_count}</div><div class=\"lbl\">Alerts</div></div>\n    <div class=\"item\"><div class=\"num\" style=\"color:#6b7280\">{unclass}</div><div class=\"lbl\">Unclassified</div></div>\n  </div>\n  <div class=\"tbl\">\n    <h2>Classification Results by Robson Group</h2>\n    <table>\n      <thead><tr>\n        <th>Group</th><th>Description</th><th>Births</th><th>CS</th><th>CS Rate</th><th>CDC Ref</th><th>Gap</th><th>Status</th>\n      </tr></thead>\n      <tbody>{rows}</tbody>\n    </table>\n    {\"<div class='note'><strong>\" + str(unclass) + \" record(s) unclassified</strong> — missing or invalid values in required fields.</div>\" if unclass > 0 else \"\"}\n  </div>\n  <div class=\"ftr\">\n    <span><strong>WHO Robson Classification &middot; CDC 2023 Reference Rates</strong></span>\n    <span>Robson Automated Reporting System v1.0 &middot; Mahmoud Alqadi</span>\n  </div>\n</div>\n</body></html>\"\"\"\n\nreturn [{\"json\": {\"report_html\": html, \"alert_count\": alert_count, \"unclassified\": unclass}}]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "id": "a12b66f8-624a-4d18-895b-ce9c5fe07d35",
+      "name": "Report Builder"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.report_html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        624,
+        0
+      ],
+      "id": "ebf84beb-02a6-4ca1-852d-c2e767c051eb",
+      "name": "Send Report"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Columns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Columns": {
+      "main": [
+        [
+          {
+            "node": "Robson Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Robson Classifier": {
+      "main": [
+        [
+          {
+            "node": "Statistics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Statistics": {
+      "main": [
+        [
+          {
+            "node": "Report Builder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report Builder": {
+      "main": [
+        [
+          {
+            "node": "Send Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "a68ba7a7-3d18-4a33-b11b-6c1b489f36af",
+  "meta": {
+    "instanceId": "dd8bae8e31a268f12c62138bf9c065067ee03be575dc01592538773173ccac34"
+  },
+  "nodeGroups": [],
+  "id": "DgP5fmz8oLK1oC2x",
+  "tags": []
+}

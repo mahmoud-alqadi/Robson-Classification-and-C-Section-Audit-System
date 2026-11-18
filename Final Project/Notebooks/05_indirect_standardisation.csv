@@ -1,0 +1,5 @@
+source,scenario,expected_cs_rate_pct,actual_cs_rate_pct,gap_pp
+Benha,A: case mix as observed,47.16,54.71,7.54
+Benha,B: group 5 reset to reference,33.7,54.71,21.01
+Qena,A: case mix as observed,59.0,79.69,20.69
+Qena,B: group 5 reset to reference,47.36,79.69,32.33

@@ -1,0 +1,5 @@
+criterion,threshold,precision,recall
+F0.5 (precision-weighted),0.311,0.413,0.309
+F1 (balanced),0.198,0.319,0.561
+F2 (recall-weighted),0.106,0.239,0.788
+Volume-matched,0.274,0.382,0.382

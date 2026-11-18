@@ -1,0 +1,4 @@
+variable,level,n,cs_crude_pct,cs_standardised_pct,apgar5_lt7_std_pct,nicu_std_pct,near_miss_std_pct
+payer,Medicaid,210025,11.97,13.7,1.7,5.471,0.494
+payer,Private,324003,14.25,13.07,1.707,4.48,0.478
+payer,Self-pay,30583,8.3,9.04,1.692,4.051,0.63

@@ -1,0 +1,9 @@
+Nat2023PublicUS.txt
+*.parquet
+*.dta
+*.DTA
+*.zip
+*.ZIP
+__pycache__/
+.ipynb_checkpoints/
+.env

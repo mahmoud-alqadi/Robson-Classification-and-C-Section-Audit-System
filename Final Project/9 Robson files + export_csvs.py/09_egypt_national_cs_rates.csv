@@ -1,0 +1,8 @@
+﻿year,cs_rate_pct,source,source_type,note
+2005,19.9,Egypt Demographic and Health Survey 2005,national survey,births in the 5 years before the survey
+2008,28.0,Egypt Demographic and Health Survey 2008,national survey,births in the 5 years before the survey
+2014,51.8,Egypt Demographic and Health Survey 2014,national survey,births in the 5 years before the survey; reproduced from microdata at 51.78%
+2015,43.8,Egypt Health Issues Survey 2015,national survey,"NOT a caesarean rate - share of MOTHERS ever sectioned (reproduced at 43.84%). Denominator is women, not births. Same survey's lifetime rate per birth is 26.25%. Do not plot on one trend line with the rows above."
+2021,72.0,"Egypt Family Health Survey 2021, CAPMAS; results announced 30 August 2022",national survey,
+2025,80.0,"Ministry of Health electronic birth and death registration, >5,000 facilities; announced 11 January 2026",registration system,93% of these caesareans in the private sector
+2026,63.0,"Dr Abla El-Alfy, Deputy Minister of Health, meeting with university hospitals, 20 April 2026; reported by Youm7, Al-Masry Al-Youm and Sout Al-Omma",registration system,Q1 2026 only. Verified April 2026 - previously carried as unverified

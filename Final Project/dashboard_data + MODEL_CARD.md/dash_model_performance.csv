@@ -1,0 +1,7 @@
+metric,validation,test,note
+ROC-AUC (overall),0.7985,0.7990850569439976,inflated by separation BETWEEN groups
+ROC-AUC (within group),,0.678-0.705,the honest measure of skill
+AUPRC,0.3535,0.35424890098229117,baseline 0.1172
+Brier score,0.0886,0.08857239037752151,lower is better
+Mean predicted rate,0.117,0.11690905690193176,observed 0.1172
+Calibration error (pp),,0.10899999999999999,"mean absolute, across risk deciles"

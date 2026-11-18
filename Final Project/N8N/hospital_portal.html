@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>بوابة تقارير Robson — المستشفى</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'IBM Plex Sans Arabic', sans-serif;
+    background: #f0f2f5;
+    color: #1a1a2e;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  .container {
+    max-width: 700px;
+    width: 100%;
+  }
+
+  .logo-bar {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .logo-bar .icon {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #1a1a2e, #0f3460);
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+
+  .logo-bar .icon svg { width: 28px; height: 28px; }
+
+  .logo-bar h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a2e;
+    letter-spacing: -0.3px;
+  }
+
+  .logo-bar p {
+    font-size: 14px;
+    color: #6b7280;
+    margin-top: 4px;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.07);
+    padding: 32px;
+    margin-bottom: 20px;
+  }
+
+  .card h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #1a1a2e;
+  }
+
+  .card p.desc {
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 20px;
+    line-height: 1.7;
+  }
+
+  .upload-zone {
+    border: 2px dashed #d1d5db;
+    border-radius: 10px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #fafbfc;
+  }
+
+  .upload-zone:hover {
+    border-color: #0f3460;
+    background: #f0f4ff;
+  }
+
+  .upload-zone.active {
+    border-color: #059669;
+    background: #f0fdf4;
+  }
+
+  .upload-zone svg {
+    width: 40px;
+    height: 40px;
+    color: #9ca3af;
+    margin-bottom: 12px;
+  }
+
+  .upload-zone .main-text {
+    font-size: 15px;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .upload-zone .sub-text {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 4px;
+  }
+
+  .upload-zone.active .main-text { color: #059669; }
+
+  .file-input { display: none; }
+
+  .file-info {
+    display: none;
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: #f0fdf4;
+    border-radius: 8px;
+    border: 1px solid #bbf7d0;
+    font-size: 13px;
+    color: #059669;
+    font-weight: 500;
+  }
+
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    margin-top: 20px;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #1a1a2e, #0f3460);
+    color: #fff;
+  }
+
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .status {
+    display: none;
+    text-align: center;
+    margin-top: 16px;
+    padding: 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .status.loading {
+    display: block;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+  }
+
+  .status.success {
+    display: block;
+    background: #f0fdf4;
+    color: #059669;
+    border: 1px solid #bbf7d0;
+  }
+
+  .status.error {
+    display: block;
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+  }
+
+  .how-it-works {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 8px;
+  }
+
+  .step {
+    text-align: center;
+    padding: 20px 12px;
+    background: #f8f9fb;
+    border-radius: 10px;
+  }
+
+  .step .num {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #1a1a2e;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .step .step-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .step .step-desc {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 4px;
+  }
+
+  .fields-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 12px;
+  }
+
+  .fields-table th {
+    text-align: right;
+    padding: 8px 12px;
+    background: #f8f9fb;
+    font-weight: 600;
+    font-size: 12px;
+    color: #4b5563;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .fields-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    color: #374151;
+  }
+
+  .fields-table td:last-child {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: #6b7280;
+    direction: ltr;
+    text-align: left;
+  }
+
+  .report-frame {
+    display: none;
+    margin-top: 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  .report-frame iframe {
+    width: 100%;
+    height: 600px;
+    border: none;
+  }
+
+  .footer {
+    text-align: center;
+    margin-top: 32px;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+  .footer strong { color: #6b7280; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="logo-bar">
+    <div class="icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <path d="M9 12h6m-3-3v6m-7 4h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+      </svg>
+    </div>
+    <h1>نظام تقارير Robson الآلي</h1>
+    <p>تصنيف WHO العشري — التقرير الشهري للمستشفيات</p>
+  </div>
+
+  <!-- How it works -->
+  <div class="card">
+    <h2>كيف يعمل النظام؟</h2>
+    <div class="how-it-works">
+      <div class="step">
+        <div class="num">1</div>
+        <div class="step-title">ارفع البيانات</div>
+        <div class="step-desc">ملف CSV أو Excel بولادات الشهر</div>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <div class="step-title">تصنيف تلقائي</div>
+        <div class="step-desc">كل حالة تُصنّف حسب WHO</div>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <div class="step-title">التقرير والتنبيهات</div>
+        <div class="step-desc">مقارنة بمرجع CDC + تنبيهات</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload -->
+  <div class="card">
+    <h2>رفع بيانات الولادات</h2>
+    <p class="desc">
+      ارفع ملف CSV يحتوي على بيانات الولادات للشهر الحالي.
+      الملف لازم يحتوي على ٦ أعمدة أساسية حسب تصنيف WHO.
+    </p>
+
+    <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+      </svg>
+      <div class="main-text" id="uploadText">اضغط لاختيار ملف CSV</div>
+      <div class="sub-text">أو اسحب الملف هنا</div>
+    </div>
+    <input type="file" class="file-input" id="fileInput" accept=".csv">
+    <div class="file-info" id="fileInfo"></div>
+
+    <button class="btn btn-primary" id="sendBtn" disabled onclick="sendData()">
+      إنشاء التقرير الشهري
+    </button>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <!-- Report will appear here -->
+  <div class="report-frame" id="reportFrame">
+    <iframe id="reportIframe"></iframe>
+  </div>
+
+  <!-- Required fields -->
+  <div class="card">
+    <h2>الأعمدة المطلوبة في الملف</h2>
+    <table class="fields-table">
+      <thead>
+        <tr>
+          <th>المتغير</th>
+          <th>الوصف</th>
+          <th>القيم المقبولة</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>parity</td><td>عدد الولادات السابقة</td><td>0, 1, 2, 3 ...</td></tr>
+        <tr><td>previous_cs</td><td>عدد القيصريات السابقة</td><td>0, 1, 2 ...</td></tr>
+        <tr><td>onset_of_labor</td><td>بدء المخاض</td><td>spontaneous, induced, no_labor</td></tr>
+        <tr><td>presentation</td><td>مجيء الجنين</td><td>cephalic, breech, transverse</td></tr>
+        <tr><td>gestational_age</td><td>عمر الحمل (أسابيع)</td><td>24 – 44</td></tr>
+        <tr><td>number_of_fetuses</td><td>عدد الأجنة</td><td>1, 2, 3 ...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <strong>WHO Robson Ten-Group Classification System</strong><br>
+    Robson Automated Reporting System v1.0 — Mahmoud Alqadi<br>
+    Digilians Digital Pioneers Initiative · 2026
+  </div>
+
+</div>
+
+<script>
+const WEBHOOK_URL = 'https://mahmoudalqadi777666.app.n8n.cloud/webhook/robson-upload';
+let csvData = null;
+
+// File input
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  handleFile(file);
+});
+
+// Drag & drop
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('active'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('active'));
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('active');
+  handleFile(e.dataTransfer.files[0]);
+});
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    csvData = parseCSV(text);
+    document.getElementById('uploadText').textContent = file.name;
+    document.getElementById('dropZone').classList.add('active');
+    const info = document.getElementById('fileInfo');
+    info.style.display = 'block';
+    info.textContent = `تم تحميل ${csvData.length} حالة ولادة بنجاح`;
+    document.getElementById('sendBtn').disabled = false;
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^\uFEFF/, ''));
+  const records = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = lines[i].split(',');
+    const obj = {};
+    headers.forEach((h, idx) => {
+      let v = (vals[idx] || '').trim();
+      if (['parity','previous_cs','number_of_fetuses'].includes(h)) {
+        obj[h] = v !== '' ? parseInt(v) : null;
+      } else if (h === 'gestational_age') {
+        obj[h] = v !== '' ? parseFloat(v) : null;
+      } else {
+        obj[h] = v || null;
+      }
+    });
+    records.push(obj);
+  }
+  return records;
+}
+
+async function sendData() {
+  const status = document.getElementById('status');
+  const btn = document.getElementById('sendBtn');
+
+  status.className = 'status loading';
+  status.textContent = 'جاري إرسال البيانات وإنشاء التقرير...';
+  btn.disabled = true;
+
+  try {
+    const resp = await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(csvData)
+    });
+    const html = await resp.text();
+
+    status.className = 'status success';
+    status.textContent = 'تم إنشاء التقرير بنجاح!';
+
+    const frame = document.getElementById('reportFrame');
+    frame.style.display = 'block';
+    const iframe = document.getElementById('reportIframe');
+    iframe.srcdoc = html;
+
+    frame.scrollIntoView({ behavior: 'smooth' });
+
+  } catch (err) {
+    status.className = 'status error';
+    status.textContent = 'خطأ في الاتصال: ' + err.message + ' — استخدم السكريبت Python كبديل';
+  }
+  btn.disabled = false;
+}
+</script>
+
+</body>
+</html>
